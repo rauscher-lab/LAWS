@@ -41,8 +41,9 @@ folder = sys.argv[1]
 file_to_save = sys.argv[2]
 folder_to_save = sys.argv[3]
 
-struct = folder + 'firstframe_fix.gro'
-trajectory = folder + 'traj_fix.xtc'
+## Simulation structure and trajectory (including water molecules)
+struct = folder + 'firstframe.gro'
+trajectory = folder + 'trajectory.xtc'
 
 
 traj = md.Universe(struct, trajectory)
@@ -240,8 +241,15 @@ comm.Gather(local_S_crystal, S_crystal, root=0)
 ## save or print
 if rank == 0:
     print(D_crystal.shape)
-    np.save(file_to_save + '_distances', D_crystal)
-    np.save(file_to_save + '_errors', E_error)
+    
+    # Offset vectors r, shape (chains, frames, 3)
     np.save(file_to_save + '_shifts', S_crystal)
+    
+    # Magnitudes of offset vectors, shape (chains, frames, 1)
+    np.save(file_to_save + '_distances', D_crystal)
+    
+    # LAWS errors with shape (chains, frames, 1)
+    np.save(file_to_save + '_errors', E_error)
+    
     
     print('Saved to ' + file_to_save)
