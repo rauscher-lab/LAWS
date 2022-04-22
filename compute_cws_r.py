@@ -1,9 +1,13 @@
-import warnings
-warnings.filterwarnings('ignore')
+#  The code for the manuscript: 
+#  LAWS: Local Alignment for Water Sites - a method to analyze crystallographic water in simulations
+#  Authors: Eugene Klyshko, Justin Kim, and Sarah Rauscher
+#  Developer: Eugene Klyshko 
+#  References in the code are related to the main text of the manuscript
 
-import MDAnalysis as md
 import numpy as np
 import sys
+
+import MDAnalysis as md
 from MDAnalysis.analysis import align
 from MDAnalysis.analysis.distances import distance_array
 from MDAnalysis.lib.distances import apply_PBC, augment_coordinates
@@ -11,15 +15,7 @@ from MDAnalysis.lib.mdamath import triclinic_vectors
 from MDAnalysis.topology.guessers import guess_bonds
 
 # algorithmic part
-from laws import (
-    solve3Dtrilateration_linear, 
-    solve3Dtrilateration_lsq_linear,
-    f_i, 
-    JTJ_i,
-    JTf_i,
-    calc_S,
-    solve3Dtrilateration_nonlinear,
-    solve3Dtrilateration_nonlinear_python,
+from laws import ( 
     solve3Dtrilateration_nonlinear_python_lm
 )
 
@@ -34,10 +30,11 @@ from laws import (
     visualize_step
 )
 
+# Using a parallel version (MPI) to speed up the computations across the 
 from mpi4py import MPI
 
 if len(sys.argv) <= 3:
-    print("Needs 3 arguments!")
+    print("Needs 3 arguments! folder with the structure and a trajctory")
     exit(0)
 
 folder = sys.argv[1]
@@ -46,6 +43,8 @@ folder_to_save = sys.argv[3]
 
 struct = folder + 'firstframe_fix.gro'
 trajectory = folder + 'traj_fix.xtc'
+
+
 traj = md.Universe(struct, trajectory)
 save_top = md.Universe(struct)
 print(trajectory)
@@ -55,14 +54,15 @@ frames = len(traj.trajectory) # 100001
 stride = 10
 timesteps = len(range(0, frames, stride)) - 1 # =1000
 
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
-
 chains = find_chains()
 N_chains = 4
 N_atoms_in_chain = 1473
 n_waters = 94
+
+# MPI initialization:
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
 
 local_size = timesteps // size # make sure timesteps equally divided between ranks (!)
 ind_start = rank * local_size
@@ -76,7 +76,7 @@ else:
     local_size = timesteps - ind_start
     traj_end = ind_end * stride
 
-    
+# MPI memory allocation to each process:
 print(rank, local_size, ind_start, ind_end, timesteps)
 sys.stdout.flush()
 
@@ -93,30 +93,39 @@ local_D_crystal = np.zeros((local_size, N_chains, n_waters), dtype=np.float)
 local_S_crystal = np.zeros((local_size, N_chains, n_waters, 3), dtype=np.float)
 local_E_error = np.zeros((local_size, N_chains, n_waters), dtype=np.float)
 
-single_pdz = md.Universe('7_crystal_waters/4pdz_water.gro')
-heavy_atoms = single_pdz.select_atoms('protein and not type H')
 
-crystal_box = single_pdz.trajectory[0].dimensions
+# The structure of the crystal (unit cell or supercell) with all symmetric copies of CWS. Protein atoms numbering must be the same as in your structure/trajectory files
+CRYSTAL_STRUCTURE = 'crystal.gro'
+crystal = md.Universe(CRYSTAL_STRUCTURE)
+crystal_box = crystal.trajectory[0].dimensions
 
-crystal_heavy_atoms_4 = [
-    single_pdz.select_atoms('protein and not type H ' + chain) for chain in chains
+## Initial pipeline of the LAWS method
+
+## heavy atoms in each chain
+heavy_atoms = crystal.select_atoms('protein and not type H')
+crystal_heavy_atoms_chains = [
+    crystal.select_atoms('protein and not type H ' + chain) for chain in chains
 ]
 
-crystal_waters_4 = [
-    single_pdz.select_atoms('resname HOH and name OW and index {}:{}'.format(
+## Detect coordinating heavy atoms from the crystal structure
+crystal_waters_chains = [
+    crystal.select_atoms('resname HOH and name OW and index {}:{}'.format(
         N_atoms_in_chain * N_chains + 3 * n_waters * chain,
         N_atoms_in_chain * N_chains + 3 * n_waters * (chain + 1) - 1)
     ) for chain in range(N_chains) 
 ]
 
-connectors_set = create_connectors(crystal_waters_4, crystal_heavy_atoms_4, crystal_box)
+# Needing for visualization
+connectors_set = create_connectors(crystal_waters_chains, crystal_heavy_atoms_chains, crystal_box)
 
+# Find coordinating heavy atoms for each CWS in a crystal 
 crystal_waters_info = [
         [
-            find_N_closest_heavy_atoms(water.position, heavy_atoms, crystal_box) for water in crystal_waters_4[chain]
+            find_N_closest_heavy_atoms(water.position, heavy_atoms, crystal_box) for water in crystal_waters_chains[chain]
         ]
     for chain in range(N_chains)
 ]
+
 selectors = [
     [
         [
@@ -126,12 +135,15 @@ selectors = [
     ]
     for chain in range(N_chains)         
 ]
+
+# exctract distances to each atom
 heavy_distances = [
     [d for _, _, d in crystal_waters_info[chain]]
     for chain in range(N_chains)
 ]
 
-all_waters = traj.select_atoms('name OW') # and around 6.0 (protein {})'.format(chain_sel), updating=True)
+
+all_waters = traj.select_atoms('name OW') 
 all_chains_protein = traj.select_atoms('protein')
 
 # memory allocation
@@ -171,7 +183,7 @@ for j in range(N_chains):
             for m in range(n_waters):
                 rr, er = solve3Dtrilateration_nonlinear_python_lm(heavy_coords[m], heavy_distances[j][m])
                 crystal_water_positions[m] = rr
-                crystal_water_errors[m] = er #/ len(heavy_distances[j][m])
+                crystal_water_errors[m] = er
                 if er > 10:
                     print(m, j)
                     print(heavy_coords[m])
@@ -184,7 +196,7 @@ for j in range(N_chains):
             visualize_step(crystal_water_positions, connectors, box, chain_waters_save_top)
             W.write(protein_water_selection)
             
-            # Recording Errors
+            # Recording LAWS Errors
             local_E_error[t, j, :] = crystal_water_errors
             
             # Recording distances to closest waters 
