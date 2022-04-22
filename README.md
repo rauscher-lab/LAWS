@@ -19,15 +19,14 @@ pip install --upgrade MDAnalysis
 pip install mpi4py
 ```
 
-
 ## Standard Command Line Usage (with MPI)
-
 Example:
 ```
 mpirun -np 4 python compute_cws_r.py folder_with_data cws_filename folder_to_save_vis
 mpirun -np 4 python compute_bulk_r.py folder_with_data bulk_filename
 ```
-
+## MD simulation data
+MD simulation data is publicly available from [Zenodo](https://doi.org/10.5281/zenodo.6478270) at DOI: https://doi.org/10.5281/zenodo.6478270
 
 ## Citation
 If you use these codes in your research, please cite our manuscript:
