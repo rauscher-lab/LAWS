@@ -11,7 +11,13 @@
 
 ## Installation
 
-The LAWS algorithm relies on the open-source `MDAnalysis` module [MDAanalysis](https://github.com/open-mmlab/mmdetection) and `scipy` optimization, as well as `MPI4py` library in the 
+The LAWS algorithm relies on the open-source `MDAnalysis` module [MDAanalysis](https://www.mdanalysis.org/) and `scipy` optimization, as well as `MPI4py` library for the parallel computing: 
+
+```
+pip install scipy
+pip install --upgrade MDAnalysis
+pip install mpi4py
+```
 
 
 ## Standard Command Line Usage (with MPI)
