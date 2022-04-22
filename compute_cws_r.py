@@ -4,6 +4,8 @@
 #  Developer: Eugene Klyshko 
 #  References in the code are related to the main text of the manuscript
 
+## This code computes offset vectors for the crystallographic water sites
+
 import numpy as np
 import sys
 
@@ -34,7 +36,7 @@ from laws import (
 from mpi4py import MPI
 
 if len(sys.argv) <= 3:
-    print("Needs 3 arguments! folder with the structure and a trajctory")
+    print("Needs 3 arguments! (1) folder with the structure and a trajectory, (2) filename to save files, (3) folder to save the files")
     exit(0)
 
 folder = sys.argv[1]
