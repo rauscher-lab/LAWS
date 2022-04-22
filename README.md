@@ -1,7 +1,7 @@
 # LAWS: Local Alignment for Water Sites
 ## A method to analyze crystallographic water in simulations 
 
-<img align ="center" src="Fig2.png" width="400">
+<img align ="center" src="Fig2.png" width="600">
 
 ## Description
 - `laws.py` contains the multilateration algorithm and all the necessary optimization pipelines
