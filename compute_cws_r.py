@@ -69,7 +69,6 @@ if N_chains >= 1:
 
 # Loading the system into MDAnalysis universe:
 traj = md.Universe(struct, trajectory)
-save_top = md.Universe(struct)
 print("Information about trajectory", trajectory)
 frames = len(traj.trajectory) # Determine number of frames in the trajectory
 timesteps = len(range(0, frames, stride)) - 1 # Determine number of frames to be used in analysis, including only every stride-th frame
@@ -119,13 +118,15 @@ local_laws_errors = np.zeros((local_size, N_chains, n_waters), dtype=np.float)
 
 ## Pipeline of the LAWS method
 
-# 1. Selecting only heavy atoms in each chain
+## 1. Detect CWS around each protein chain in the crystal structure, find which protein atoms coordinate them and exctract the coordinating distances
+
+# Selecting only heavy atoms in each chain
 heavy_atoms = crystal.select_atoms('protein and not type H')
 crystal_heavy_atoms_chains = [
     crystal.select_atoms('protein and not type H ' + chain) for chain in chains
 ]
 
-## Detect CWS around each protein chain in the crystal structure
+# Selecting all CWS from the crystal structure.
 # Numbering of CWS must be consequtive (chain by chain) and should go after protein coordinates.
 # Naming of CWS oxygens must be resname HOH, atom name OW.
 crystal_waters_chains = [
@@ -135,7 +136,7 @@ crystal_waters_chains = [
     ) for chain in range(N_chains) 
 ]
 
-# Find coordinating heavy atoms for each CWS around each chain 
+# Find nearest neighbour heavy atoms for each CWS around each chain 
 crystal_waters_info = [
         [
             find_N_closest_heavy_atoms(water.position, heavy_atoms, crystal_box) for water in crystal_waters_chains[chain]
@@ -149,7 +150,7 @@ heavy_distances = [
     for chain in range(N_chains)
 ]
 
-# Create MDAnalysis selector for each heavy atom coordinating the CWS
+# Create MDAnalysis selection for each heavy atom coordinating the CWS
 selectors = [
     [
         [
@@ -160,34 +161,35 @@ selectors = [
     for chain in range(N_chains)         
 ]
 
+all_waters = traj.select_atoms('name OW') # Choose all water molecules in the simulation
+all_chains_protein = traj.select_atoms('protein') # Choose all protein atoms in the simulation
 
-
-all_waters = traj.select_atoms('name OW') 
-all_chains_protein = traj.select_atoms('protein')
+## This block is necessary for visualization of tracked CWS positions around the proteins
+vis_folder = 'cws_trajectory/' # folder to save CWS visualizations
+os.mkdirs(vis_folder, exist_ok=True) # create this folder if doesn't exist
+connectors_set = create_connectors(crystal_waters_chains, crystal_heavy_atoms_chains, crystal_box) # Associate each CWS with a chain (need for visualization)
+save_top = md.Universe(struct) # create a temporary universe containing a structure to build vizualization of CWS around it
 
 # memory allocation
 crystal_water_positions = np.empty((n_waters, 3))
 crystal_water_errors = np.empty((n_waters))
 
-# Need or visualization
-connectors_set = create_connectors(crystal_waters_chains, crystal_heavy_atoms_chains, crystal_box)
 
+# Main loop over all chains
 for j in range(N_chains):
+    chain_sel = chains[j] # get a chain selection
+    heavy_atoms_sel = [all_chains_protein.select_atoms(*at_selector) for at_selector in selectors[j]] # get coordinating heavy atoms for a chain
+    chain_protein = traj.select_atoms('protein ' + chain_sel) # select chain in the trajectory
     
-    chain_sel = chains[j]
+    heavy_save_top_sel = [save_top.select_atoms('protein').select_atoms(*at_selector) for at_selector in selectors[j]] # get coordinating heavy atoms for a chain in temporary universe
+    chain_protein_save_top = save_top.select_atoms('protein ' + chain_sel) # extract specific chain
+    chain_waters_save_top = save_top.select_atoms('name OW').atoms[:n_waters] # extract CWS around a specific chain in temporaty universe
+    protein_water_selection = chain_protein_save_top + chain_waters_save_top # unite atoms of protein and CWS (for visualization)
     
-    heavy_atoms_sel = [all_chains_protein.select_atoms(*at_selector) for at_selector in selectors[j]]
-    chain_protein = traj.select_atoms('protein ' + chain_sel)
-    
-    heavy_save_top_sel = [save_top.select_atoms('protein').select_atoms(*at_selector) for at_selector in selectors[j]]
-    chain_protein_save_top = save_top.select_atoms('protein ' + chain_sel)
-    chain_waters_save_top = save_top.select_atoms('name OW').atoms[:n_waters]
-    protein_water_selection = chain_protein_save_top + chain_waters_save_top
-    
-    connectors = traj.atoms[connectors_set[j]]
+    connectors = traj.atoms[connectors_set[j]] # get connecting atoms for a specific chain
     
     if rank == 0:
-        protein_water_selection.write(f"{folder_to_save}water_sites_traj/protein_{j}.gro", multiframe=False)
+        protein_water_selection.write(f"{vis_folder}/protein_{j}.gro", multiframe=False)
         
     with md.Writer(
         f"{folder_to_save}temp/protein_{j}_{rank:03}.xtc",
@@ -219,7 +221,7 @@ for j in range(N_chains):
             W.write(protein_water_selection)
             
             # Recording LAWS Errors
-            local_E_error[t, j, :] = crystal_water_errors
+            local_laws_errors[t, j, :] = crystal_water_errors
             
             # Recording distances to closest waters 
             dist_mtx =  distance_array(
@@ -227,14 +229,14 @@ for j in range(N_chains):
                 all_waters.atoms.positions,
                 box=box,
             )
-            assert np.all(np.min(dist_mtx, axis=1)) < 6.0, f"Distance to the closest exceeds 4.5 A: {np.min(dist_mtx, axis=1)}"
-            local_D_crystal[t, j, :] = np.min(dist_mtx, axis=1)
+            assert np.all(np.min(dist_mtx, axis=1)) < 6.0, f"Distance to the closest exceeds 6 A: {np.min(dist_mtx, axis=1)}"
+            local_distances[t, j, :] = np.min(dist_mtx, axis=1)
             
             # Finding offset vectors to the closest water 
             water_indeces = np.argmin(dist_mtx, axis=1)
             positions_water = all_waters.atoms.positions[water_indeces]
             positions_crystal = crystal_water_positions.astype(np.float32)
-            local_S_crystal[t, j, :] = find_offsets(
+            local_offsets[t, j, :] = find_offsets(
                 positions_water,
                 positions_crystal,
                 dist_mtx,
