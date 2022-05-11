@@ -5,7 +5,7 @@
 # 
 #  Developer: Eugene Klyshko
 
-# This code samples bulk water sites 6 A from the protein and then computes offset vectors from the nearest water molecules to each bulk water site
+# This code utilizes global alignment method to compute offset vectors from the nearest water molecules to each CWS
 # in each frame of the MD simulation
 
 ## (!) User should adjust these parameters according to their system and file names (1-3):
@@ -60,6 +60,10 @@ print("Information about trajectory", trajectory)
 frames = len(traj.trajectory) # Determine number of frames in the trajectory
 timesteps = len(range(0, frames, stride)) - 1 # Determine number of frames to be used in analysis, including only every stride-th frame
 
+# Loading the crystal structure into MDAnalysis universe:
+crystal = md.Universe(CRYSTAL_STRUCTURE)
+crystal_box = crystal.trajectory[0].dimensions # dimensions of the sell. Needed for treating periodic boundaries.
+
 # MPI initialization:
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -89,33 +93,34 @@ else:
 local_distances = np.empty((local_n, timesteps, n_waters), dtype=np.float)
 local_offsets = np.empty((local_n, timesteps, n_waters, 3), dtype=np.float)
 
-# The structure of the crystal (unit cell or supercell) with all symmetric copies of CWS. Protein atoms numbering must be the same as in your structure/trajectory files
 
-CRYSTAL_STRUCTURE = 'crystal.gro'
-crystal = md.Universe(CRYSTAL_STRUCTURE)    
-crystal_waters = crystal.select_atoms('name OW')
+# Pipeline: 
 
+crystal_waters = crystal.select_atoms('name OW') # selecting crystal waters
+
+# Main loop over chains (each process analyses bulk water sites arou)
 for i, j in enumerate(range(ind_start, ind_end)):
-    chain_sel = chains[j]
-    chain = traj.select_atoms('protein and not type H' + chain_sel)
+    
+    chain_sel = chains[j] 
+    chain = traj.select_atoms('protein and not type H' + chain_sel) # selecting a specific chain
     sel_text = 'name OW and around 6.0 protein {}'.format(chain_sel)
-    chain_waters = traj.select_atoms(sel_text, updating=True)
+    chain_waters = traj.select_atoms(sel_text, updating=True) # select water molecules in a simulation within 6 A from the protein
     
-    pdz_protein = crystal.select_atoms('protein and not type H')
+    protein_atoms = crystal.select_atoms('protein and not type H') # select protein atoms in the crystal
     
-    for t, ts in enumerate(traj.trajectory[start:frames:stride]):
+    # Looping over all time steps
+    for t, ts in enumerate(traj.trajectory[0:frames:stride]):
         
-        if t % 10 == 0:
-            
+        # printint progress
+        if t % 10 == 0: 
             print("Rank: {}, timestep: {} out of {}".format(rank, t, timesteps))
             sys.stdout.flush()
             
-        align.alignto(pdz_protein, chain, weights="mass")
+        align.alignto(protein_atoms, chain, weights="mass") # globally aligning protein structure onto the crystal structure
         
+        # now positions of crystallographic oxygens are new CWS positions
         box = ts.dimensions
-        
-        dist_mtx = np.empty((n_waters, chain_waters.n_atoms), dtype=np.float)
-        
+        dist_mtx = np.empty((n_waters, chain_waters.n_atoms), dtype=np.float) # finding the nearest neighbour water oxygen for each CWS
         distance_array(
             crystal_waters.atoms.positions,
             chain_waters.atoms.positions,
@@ -123,31 +128,29 @@ for i, j in enumerate(range(ind_start, ind_end)):
             result=dist_mtx,
             backend='OpenMP'
         )
-        local_D_crystal[i, t, :] = np.min(dist_mtx, axis=1)
-        
-        #assert np.all(np.min(dist_mtx, axis=1)) < 5.0, f"Distance to the closest exceeds 4.5 A: {np.min(dist_mtx, axis=1)}"
+        local_distances[i, t, :] = np.min(dist_mtx, axis=1)
  
         # Finding offset vectors to the closest water 
         water_indeces = np.argmin(dist_mtx, axis=1)
         positions_water = chain_waters.atoms[water_indeces].positions
         positions_crystal = crystal_waters.atoms.positions
         
-        local_S_crystal[i, t, :] = find_offsets(
+        local_offsets[i, t, :] = find_offsets(
             positions_water,
             positions_crystal,
             dist_mtx,
             box
         )
-        
-comm.Gather(local_D_crystal, D_crystal, root=0)
-comm.Gather(local_S_crystal, S_crystal, root=0)
 
-## save or print
+# Collect data from all processes into rank 0 process to save into file
+comm.Barrier()
+comm.Gather(local_distances, distances, root=0)
+comm.Gather(local_offsets, offsets, root=0)
+
+## Saving files
 if rank == 0:
-    print(D_crystal.shape, S_crystal.shape)
-    
-    # Magnitudes of offset vectors, shape (chains, frames, 1)
-    np.save(file_to_save + '_distances', D_crystal)
-    # Offset vectors r, shape (chains, frames, 3)
-    np.save(file_to_save + '_shifts', S_crystal)
-    print('Crystal waters are saved to ' + file_to_save)
+    # filename to save all the results in npy array
+    filename_to_save = 'global'
+    np.save(filename_to_save + '_offsets', offsets) # Offset vectors r, shape (chains, frames, 3)
+    np.save(filename_to_save + '_distances', distances) # Magnitudes of offset vectors, shape (chains, frames, 1)
+
