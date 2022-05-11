@@ -111,7 +111,7 @@ for i, j in enumerate(range(ind_start, ind_end)):
     # Looping over all time steps
     for t, ts in enumerate(traj.trajectory[0:frames:stride]):
         
-        # printint progress
+        # printing progress
         if t % 10 == 0: 
             print("Rank: {}, timestep: {} out of {}".format(rank, t, timesteps))
             sys.stdout.flush()
@@ -120,6 +120,8 @@ for i, j in enumerate(range(ind_start, ind_end)):
         
         # now positions of crystallographic oxygens are new CWS positions
         box = ts.dimensions
+        
+        # Computing distances to the closest water taking into account preiodic images
         dist_mtx = np.empty((n_waters, chain_waters.n_atoms), dtype=np.float) # finding the nearest neighbour water oxygen for each CWS
         distance_array(
             crystal_waters.atoms.positions,
@@ -134,7 +136,6 @@ for i, j in enumerate(range(ind_start, ind_end)):
         water_indeces = np.argmin(dist_mtx, axis=1)
         positions_water = chain_waters.atoms[water_indeces].positions
         positions_crystal = crystal_waters.atoms.positions
-        
         local_offsets[i, t, :] = find_offsets(
             positions_water,
             positions_crystal,
