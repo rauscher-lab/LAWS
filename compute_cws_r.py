@@ -1,5 +1,5 @@
 #  The code for the manuscript: 
-#  LAWS: Local Alignment for Water Sites - a method to analyze crystallographic water in simulations
+#  LAWS: Local Alignment for Water Sites - tracking ordered water in simulations
 #  Authors: Eugene Klyshko, Justin Kim, and Sarah Rauscher
 #  References in the code are related to the main text of the manuscript
 # 
