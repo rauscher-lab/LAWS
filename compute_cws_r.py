@@ -167,6 +167,7 @@ all_chains_protein = traj.select_atoms('protein') # Choose all protein atoms in 
 ## This block is necessary for visualization of tracked CWS positions around the proteins
 vis_folder = 'cws_trajectory/' # folder to save CWS visualizations
 os.mkdirs(vis_folder, exist_ok=True) # create this folder if doesn't exist
+os.mkdirs(vis_folder + 'temp/', exist_ok=True) # create temp folder if doesn't exist
 connectors_set = create_connectors(crystal_waters_chains, crystal_heavy_atoms_chains, crystal_box) # Associate each CWS with a chain (need for visualization)
 save_top = md.Universe(struct) # create a temporary universe containing a structure to build vizualization of CWS around it
 
@@ -189,33 +190,28 @@ for j in range(N_chains):
     connectors = traj.atoms[connectors_set[j]] # get connecting atoms for a specific chain
     
     if rank == 0:
-        protein_water_selection.write(f"{vis_folder}/protein_{j}.gro", multiframe=False)
+        protein_water_selection.write(f"{vis_folder}/protein_{j}.gro", multiframe=False) # Write coordinates of the chain 
         
     with md.Writer(
-        f"{folder_to_save}temp/protein_{j}_{rank:03}.xtc",
+        f"{vis_folder}/temp/protein_{j}_{rank:03}.xtc",
         protein_water_selection.n_atoms,
         multiframe=True
     ) as W:
         
+        # Loop over time, computing offset vectors, distances and LAWS error
         for t, ts in enumerate(traj.trajectory[traj_start:traj_end:stride]):
 
             box = ts.dimensions
             save_top.trajectory[0].dimensions = box
             
-            # LAWS Algorithm
+            # LAWS Algorithm: tracking a new CWS position relative to protein atoms
             heavy_coords = apply_correction(heavy_atoms_sel, box)
             for m in range(n_waters):
-                rr, er = solve3Dtrilateration_nonlinear_python_lm(heavy_coords[m], heavy_distances[j][m])
+                rr, er = solve3Dtrilateration_nonlinear_python_lm(heavy_coords[m], heavy_distances[j][m]) # solving an optimization problem
                 crystal_water_positions[m] = rr
                 crystal_water_errors[m] = er
-                if er > 10:
-                    print(m, j)
-                    print(heavy_coords[m])
-                    print(heavy_distances[j][m])
-                    print(heavy_atoms_sel[m].atoms)
-                    print(heavy_atoms_sel[m].positions)
             
-            # Recording WS positions, i.e. visualization
+            # Recording CWS positions for visualization
             chain_protein_save_top.atoms.positions = chain_protein.atoms.positions.copy()
             visualize_step(crystal_water_positions, connectors, box, chain_waters_save_top)
             W.write(protein_water_selection)
@@ -232,7 +228,7 @@ for j in range(N_chains):
             assert np.all(np.min(dist_mtx, axis=1)) < 6.0, f"Distance to the closest exceeds 6 A: {np.min(dist_mtx, axis=1)}"
             local_distances[t, j, :] = np.min(dist_mtx, axis=1)
             
-            # Finding offset vectors to the closest water 
+            # Recording offset vectors to the closest water 
             water_indeces = np.argmin(dist_mtx, axis=1)
             positions_water = all_waters.atoms.positions[water_indeces]
             positions_crystal = crystal_water_positions.astype(np.float32)
@@ -248,9 +244,7 @@ for j in range(N_chains):
                 print("Rank: {}, chain: {}, timestep: {} out of {}".format(rank, j+1, t, local_size))
                 sys.stdout.flush()
 
-print("Rank: {} is ready".format(rank))
-sys.stdout.flush()
-
+# Collect data from all processes into rank 0 process to save into file
 comm.Barrier()
 comm.Gather(local_offsets, offsets, root=0)
 comm.Gather(local_distances, distances, root=0)
@@ -259,10 +253,9 @@ comm.Gather(local_laws_errors, laws_errors, root=0)
 ## Saving files
 if rank == 0:
   
-    # filename 
+    # filename to save all the results in npy array
     filename_to_save = 'cws'
     np.save(filename_to_save + '_offsets', offsets) # Offset vectors r, shape (chains, frames, 3)
     np.save(filename_to_save + '_distances', distances) # Magnitudes of offset vectors, shape (chains, frames, 1)
     np.save(filename_to_save + '_laws_errors', laws_errors) # LAWS errors with shape (chains, frames, 1)
-    
-    print('Saved to ' + filename_to_save)
+
