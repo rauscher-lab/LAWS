@@ -7,8 +7,11 @@
 import warnings
 warnings.filterwarnings('ignore')
 
+# import useful libraries, such as MDAnalysis, and necessary functions
 import numpy as np
 from itertools import combinations
+from scipy.spatial.distance import squareform
+from scipy.optimize import least_squares
 
 import MDAnalysis as md
 from MDAnalysis.analysis.distances import distance_array, self_distance_array
@@ -17,10 +20,7 @@ from MDAnalysis.lib.distances import apply_PBC, augment_coordinates
 from MDAnalysis.topology.guessers import guess_bonds
 from MDAnalysis.analysis import align
 
-from scipy.spatial.distance import squareform
-from scipy.optimize import least_squares
-
-import sys
+import sys, os
 
 
 def solve3Dtrilateration_linear(r_array, d_array):
@@ -159,9 +159,12 @@ def find_chains(N_chains, N_atoms_in_chain):
     return chains
 
 
-def create_connectors(crystal_waters_4, crystal_heavy_atoms_4, box):
+def create_connectors(crystal_waters, crystal_heavy_atoms, box):
+    """
+    The function assigns CWS to each protein chain in the crystal (needed for visualization)
+    """
     connectors = []
-    for cw_oxygens, chain_heavy_atoms in zip(crystal_waters_4, crystal_heavy_atoms_4):
+    for cw_oxygens, chain_heavy_atoms in zip(crystal_waters, crystal_heavy_atoms):
         d = distance_array(
             cw_oxygens.atoms.positions,
             chain_heavy_atoms.atoms.positions,
@@ -171,33 +174,6 @@ def create_connectors(crystal_waters_4, crystal_heavy_atoms_4, box):
         connectors.append(chain_heavy_atoms.atoms[indexes].ix)
     return connectors
     
-def create_pairwise_bonds(indexes):
-    return list(combinations(indexes, 2))
-
-def create_bonds(indexes):
-    bonds = []
-    for i, index1 in enumerate(indexes):
-        if i != len(indexes) - 1:
-            bonds.append((index1, indexes[i+1]))
-        else:
-            bonds.append((index1, indexes[0]))
-    return bonds
-
-def create_bonds_w_protein(heavy_atoms_sel_copy, chain_waters_copy, chain_protein_copy):
-    bonds = []
-    connecting_atoms_list = []
-    print(len(heavy_atoms_sel_copy), chain_waters_copy.n_atoms)
-    
-    for i, (n_heavy_atoms, chain_water) in enumerate(zip(heavy_atoms_sel_copy, chain_waters_copy)):
-        connecting_atoms = n_heavy_atoms & chain_protein_copy
-        if i == 91 and not connecting_atoms.n_atoms:
-            print(i, len(connecting_atoms.atoms), connecting_atoms.atoms, n_heavy_atoms, chain_water)
-            connecting_atoms = chain_protein_copy.select_atoms('index 120')
-        for atom in connecting_atoms.atoms[:1]:
-            bonds.append((atom.ix, chain_water.ix))
-        connecting_atoms_list.extend(connecting_atoms.atoms[:1]) 
-    return bonds, connecting_atoms_list
-
 
 def find_pbc_coords(positions, tric_vectors, include_self=False):
   """
