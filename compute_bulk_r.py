@@ -1,75 +1,93 @@
 #  The code for the manuscript: 
-#  LAWS: Local Alignment for Water Sites - a method to analyze crystallographic water in simulations
+#  LAWS: Local Alignment for Water Sites - tracking ordered water in simulations
 #  Authors: Eugene Klyshko, Justin Kim, and Sarah Rauscher
-#  Developer: Eugene Klyshko 
 #  References in the code are related to the main text of the manuscript
+# 
+#  Developer: Eugene Klyshko
+
+# This code samples bulk water sites 6 A from the protein and then computes offset vectors from the nearest water molecules to each bulk water site
+# in each frame of the MD simulation
+
+## (!) User should adjust these parameters according to their system and file names (1-3):
+
+# 1. Path to a simulation structure and trajectory (which includes positions of all water molecules)
+traj_folder = './'
+struct = traj_folder + 'firstframe.gro'
+trajectory = traj_folder + 'trajectory.xtc'
+
+# 2. Path to the structure of the system (single protein, unit cell or supercell) containing only protein and CWS. 
+# Typically, a crystal structure (PDB or GRO file) from which your simulation system was built.
+# In case of the MD simulation of a protein crystal (as in the manuscript), the unit cell structure was constructed using option `build a unit cell` in CHARMM-GUI server,
+# by also preserving all crystallographic water oxygens. 
+# Note: Protein atoms numbering must be the same as in your trajectory file. It is normally the case since the MD system is constructed consequtively: 
+# PDB (protein + CWS coordinates) -> solvating the system with H2O (using for example, gmx solvate) -> adding ions.
+# Initial information for multilateration (coordinating protein atoms for each CWS) will be extracted from this structure file. 
+CRYSTAL_STRUCTURE = 'crystal.gro' # Protein atom numbers in this file should correpond to 'firstframe.gro'
+
+# 3. Parameters of the system and trajectory
+stride = 10 # Stride for analysis (when stride=10 we will analyze only every 10-th frame of the original trajectory)
+N_chains = 4 # Number of symmetric chains in the simulation. In the manuscript, we have a unit cell with 4 protein chains. 
+N_atoms_in_chain = 1473 # Number of protein atoms in each chain.
+n_waters = 94 # Number of CWS in the crystal structure.
 
 
-## This code computes offset vectors for the bulk water sites
-
+# import useful libraries, such as MDAnalysis, and necessary functions
 import numpy as np
-import sys
-
+import sys, os
 import MDAnalysis as md
 from MDAnalysis.analysis import align
 from MDAnalysis.analysis.distances import distance_array
 
+# import function necessary for analysis of a simulation
 from laws import (
     find_chains,
     find_offsets
 )
 
+# Using a parallel (MPI) to speed up the computations across the protein chains
 from mpi4py import MPI
 
 
-if len(sys.argv) <= 3:
-    print("Needs 2 arguments! (1) folder with the structure and a trajectory, (2) filename to save files")
-    exit(0)
+# This function assumes that atomic coordinates are written consequtively (chain by chain) in the structure file from the very beginning of the file.
+# It creates MDAnalysis selection for each chain (can be applied to both CRYSTAL_STRUCTURE and MD struct) for further analysis
+if N_chains >= 1:
+    chains = find_chains(N_chains, N_atoms_in_chain)
 
-folder = sys.argv[1]
-file_to_save = sys.argv[2]
 
-## Simulation structure and trajectory (including water molecules)
-struct = folder + 'firstframe.gro'
-trajectory = folder + 'trajectory.xtc'
+# Loading the system into MDAnalysis universe:
 traj = md.Universe(struct, trajectory)
+print("Information about trajectory", trajectory)
+frames = len(traj.trajectory) # Determine number of frames in the trajectory
+timesteps = len(range(0, frames, stride)) - 1 # Determine number of frames to be used in analysis, including only every stride-th frame
 
-chains = find_chains()
-
-frames = len(traj.trajectory) 
-start = 0
-stride = 1
-timesteps = len(range(0, frames, stride))
-print(timesteps)
-
+# MPI initialization:
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-N = 4
-
 # MPI memory allocation to each process:
+# We divide computations between ranks across the chains, so each process will analyze its own chain's trajectory
+# Setting up local indexing and sizes
 
-## Setting up local indexing and sizes
-local_n = N // size
+local_n = N_chains // size
 ind_start = rank * local_n
 if rank != size - 1 :
     ind_end = (rank+1)*local_n
 else:
     ind_end = N
 
-n_waters = 94
-
+# Next block of code describes memory allocation to each process (for MPI):
 if rank == 0:
-    D_crystal = np.empty((N, timesteps, n_waters), dtype=np.float)
-    S_crystal = np.empty((N, timesteps, n_waters, 3), dtype=np.float)
+    # main global variables containing offset vectors, distances (magnitudes of offset vectors)
+    distances = np.empty((N, timesteps, n_waters), dtype=np.float)
+    offsets = np.empty((N, timesteps, n_waters, 3), dtype=np.float)
 else:
-    D_crystal = None
-    S_crystal = None
-    
-local_D_crystal = np.empty((local_n, timesteps, n_waters), dtype=np.float)
-local_S_crystal = np.empty((local_n, timesteps, n_waters, 3), dtype=np.float)
+    distances = None
+    offsets = None
 
+# same variables but local for each process
+local_distances = np.empty((local_n, timesteps, n_waters), dtype=np.float)
+local_offsets = np.empty((local_n, timesteps, n_waters, 3), dtype=np.float)
 
 # The structure of the crystal (unit cell or supercell) with all symmetric copies of CWS. Protein atoms numbering must be the same as in your structure/trajectory files
 
