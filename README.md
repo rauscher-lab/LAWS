@@ -7,7 +7,7 @@
 - `laws.py` contains the multilateration algorithm and all the necessary optimization pipelines.
 - `compute_bulk_r.py` contains the code to compute offset vectors **r** and distances |r| for bulk water sites.
 - `compute_global_r.py` contains the code to compute offset vectors **r**, distances |r| for globally aligned CWS.
-- `compute_laws_r.py` contains the code to compute offset vectors **r**, distances |r| and the correponding LAWS errors for the CWS tracked by our local alignment algorithm (LAWS). Additionally, it saves moving positions of the CWS into new trajectory which can be visualized (Fig.4A of the manuscript)
+- `compute_laws_r.py` contains the code to compute offset vectors **r**, distances |r| and the correponding LAWS errors for the CWS tracked by our local alignment algorithm (LAWS). Additionally, it saves moving positions of the CWS into new trajectory which can be visualized (as in Fig.4A of the manuscript)
 
 
 ## Installation
