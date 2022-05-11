@@ -190,7 +190,8 @@ for j in range(N_chains):
     
     if rank == 0:
         protein_water_selection.write(f"{vis_folder}/protein_{j}.gro", multiframe=False) # Write coordinates of the chain 
-        
+    # Create a trajectory where we will write moving coordinates of CWS. These trajectories can be then visualized in VMD and will contain moving positions of each CWS  
+    # with coordinates of movinf protein chains:
     with md.Writer(
         f"{vis_folder}/temp/protein_{j}_{rank:03}.xtc",
         protein_water_selection.n_atoms,
