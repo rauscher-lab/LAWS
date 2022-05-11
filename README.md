@@ -1,5 +1,5 @@
 # LAWS: Local Alignment for Water Sites
-## Tracking ordered water in simulations 
+## Algorithm for tracking ordered water in simulations 
 
 <img align ="center" src="Fig2.png" width="600">
 
