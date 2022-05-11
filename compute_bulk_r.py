@@ -55,7 +55,7 @@ all_waters = traj.select_atoms('name OW') # selecting all water oxygens
 protein_atoms = traj.select_atoms('protein') # selecting all protein atoms
 
 # Bulk water sites are generated as the positions at least 6 A from the protein. 
-# A nice quick trick to do it with MDAnalysis: (i) choose water molecules which are more than 6 A from the protein (in the first frame), 
+# A nice quick trick - to do it with MDAnalysis: (i) choose water molecules which are more than 6 A from the protein (in the first frame), 
 # and (ii) use their positions (in the first frame) as bulk water sites. 
 # Note (!) make sure there are more of such waters than your desired number in n_waters. Selecting the first n_waters and their coordinates:
 bulk_water_sites  =  traj.select_atoms('name OW and not around 6.0 (protein and not type H)').atoms[:n_waters].positions.copy()
