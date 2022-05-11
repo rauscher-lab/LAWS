@@ -7,7 +7,7 @@
 # This code computes offset vectors from the nearest water molecules to each crystallographic water sites
 # in each frame of the MD simulation
 
-## (!!!) User should adjust these parameters according to their system and file names:
+## (!) User should adjust these parameters according to their system and file names (1-4):
 
 # 1. Path to a simulation structure and trajectory (which includes positions of all water molecules)
 traj_folder = './'
@@ -31,7 +31,6 @@ n_waters = 94 # Number of CWS in the crystal structure.
 
 # 4. Path to a folder where visualized CWS positions (as a new trajectory) will be saved. Can be left unchanged.
 folder_to_save = 'visualize/'
-
 
 # import useful libraries, such as MDAnalysis, and necessary functions
 import numpy as np
