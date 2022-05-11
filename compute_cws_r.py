@@ -1,14 +1,24 @@
 #  The code for the manuscript: 
 #  LAWS: Local Alignment for Water Sites - a method to analyze crystallographic water in simulations
 #  Authors: Eugene Klyshko, Justin Kim, and Sarah Rauscher
-#  Developer: Eugene Klyshko 
 #  References in the code are related to the main text of the manuscript
+# 
+#  Developer: Eugene Klyshko 
 
-## This code computes offset vectors for the crystallographic water sites
 
+## This code computes offset vectors from the nearest water molecules to each crystallographic water sites
+## in each frame of the MD simulation
+
+# These parameters need to be adjusted by the user:
+
+
+
+
+
+
+# import useful libraries, such as MDAnalysis, and necessary functions
 import numpy as np
-import sys
-
+import sys, os
 import MDAnalysis as md
 from MDAnalysis.analysis import align
 from MDAnalysis.analysis.distances import distance_array
@@ -16,12 +26,12 @@ from MDAnalysis.lib.distances import apply_PBC, augment_coordinates
 from MDAnalysis.lib.mdamath import triclinic_vectors
 from MDAnalysis.topology.guessers import guess_bonds
 
-# algorithmic part
+# import trilateration part of the LAWS algorithm
 from laws import ( 
     solve3Dtrilateration_nonlinear_python_lm
 )
 
-# simulation part
+# import function necessary for analysis of a simulation
 from laws import (
     find_N_closest_heavy_atoms,
     find_chains,
@@ -32,42 +42,60 @@ from laws import (
     visualize_step
 )
 
-# Using a parallel version (MPI) to speed up the computations across the 
+# Using a parallel (MPI) to speed up the computations across the timeframes
 from mpi4py import MPI
 
-if len(sys.argv) <= 3:
-    print("Needs 3 arguments! (1) folder with the structure and a trajectory, (2) filename to save files, (3) folder to save the files")
-    exit(0)
+## (!!!) User should adjust these parameters according to their system and file names:
 
-folder = sys.argv[1]
-file_to_save = sys.argv[2]
-folder_to_save = sys.argv[3]
+# 1. Path to a simulation structure and trajectory (which includes positions of all water molecules)
+traj_folder = './'
+struct = traj_folder + 'firstframe.gro'
+trajectory = traj_folder + 'trajectory.xtc'
 
-## Simulation structure and trajectory (including water molecules)
-struct = folder + 'firstframe.gro'
-trajectory = folder + 'trajectory.xtc'
+# 2. Path to the structure of the system (single protein, unit cell or supercell) containing only protein and CWS. 
+# Typically, a crystal structure (PDB or GRO file) from which your simulation system was built.
+# In case of the MD simulation of a protein crystal (as in the manuscript), the unit cell structure was constructed using option `build a unit cell` in CHARMM-GUI server,
+# by also preserving all crystallographic water oxygens. 
+# Note: Protein atoms numbering must be the same as in your trajectory file. It is normally the case since the MD system is constructed consequtively: 
+# PDB (protein + CWS coordinates) -> solvating the system with H2O (using for example, gmx solvate) -> adding ions.
+# Initial information for multilateration (coordinating protein atoms for each CWS) will be extracted from this structure file. 
+CRYSTAL_STRUCTURE = 'crystal.gro' # Protein atom numbers in this file should correpond to 'firstframe.gro'
+
+# 3. Parameters of the system and trajectory
+stride = 10 # Stride for analysis (when stride=10 we will analyze only every 10-th frame of the original trajectory)
+N_chains = 4 # Number of symmetric chains in the simulation. In the manuscript, we have a unit cell with 4 protein chains. 
+N_atoms_in_chain = 1473 # Number of protein atoms in each chain.
+n_waters = 94 # Number of CWS in the crystal structure.
+
+# 4. Path to a folder where visualized CWS positions (as a new trajectory) will be saved. Can be left unchanged.
+folder_to_save = 'visualize/'
+
+# This function assumes that atomic coordinates are written consequtively (chain by chain) in the structure file from the very beginning of the file.
+# It creates MDAnalysis selection for each chain (can be applied to both CRYSTAL_STRUCTURE and MD struct) for further analysis
+if N_chains >= 1:
+    chains = find_chains()
 
 
+# Loading the system in the MDAnalysis universe:
 traj = md.Universe(struct, trajectory)
 save_top = md.Universe(struct)
-print(trajectory)
-sys.stdout.flush()
+print("Information about trajectory", trajectory)
+frames = len(traj.trajectory) # Determine number of frames in the trajectory
+timesteps = len(range(0, frames, stride)) - 1 # Determine number of frames to be used in analysis, including only every stride-th frame
 
-frames = len(traj.trajectory) # 100001
-stride = 10
-timesteps = len(range(0, frames, stride)) - 1 # =1000
+# Loading the crystal structure in the MDAnalysis universe:
+crystal = md.Universe(CRYSTAL_STRUCTURE)
+crystal_box = crystal.trajectory[0].dimensions # dimensions of the sell. Needed for treating periodic boundaries.
 
-chains = find_chains()
-N_chains = 4
-N_atoms_in_chain = 1473
-n_waters = 94
 
 # MPI initialization:
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-local_size = timesteps // size # make sure timesteps equally divided between ranks (!)
+# We divide computations between ranks across the time, so each process will analyze its own part of the trajectory
+
+local_size = timesteps // size # make sure timesteps equally divided between ranks (!!!)
 ind_start = rank * local_size
 traj_start = ind_start * stride
 
@@ -79,32 +107,30 @@ else:
     local_size = timesteps - ind_start
     traj_end = ind_end * stride
 
-# MPI memory allocation to each process:
+# Next block of code describes memory allocation to each process (for MPI):
 print(rank, local_size, ind_start, ind_end, timesteps)
-sys.stdout.flush()
+sys.stdout.flush() # printing stdout right away, no waiting for other processes to finish
 
 if rank == 0:
-    D_crystal = np.empty((timesteps, N_chains, n_waters), dtype=np.float)
-    E_error = np.empty((timesteps, N_chains,  n_waters), dtype=np.float)
-    S_crystal = np.empty((timesteps, N_chains, n_waters, 3), dtype=np.float)
+    # main global variables containing offset vectors, distances (magnitudes of offset vectors) and LAWS 
+    offsets = np.empty((timesteps, N_chains, n_waters, 3), dtype=np.float)
+    distances = np.empty((timesteps, N_chains, n_waters), dtype=np.float)
+    laws_errors = np.empty((timesteps, N_chains,  n_waters), dtype=np.float)
+    
 else:
-    D_crystal = None
-    E_error = None
-    S_crystal = None
+    offsets = None
+    distances = None
+    laws_errors = None
 
-local_D_crystal = np.zeros((local_size, N_chains, n_waters), dtype=np.float)
-local_S_crystal = np.zeros((local_size, N_chains, n_waters, 3), dtype=np.float)
-local_E_error = np.zeros((local_size, N_chains, n_waters), dtype=np.float)
+# same variables but local for each process
+local_distances = np.zeros((local_size, N_chains, n_waters), dtype=np.float)
+local_offsets = np.zeros((local_size, N_chains, n_waters, 3), dtype=np.float)
+local_laws_errors = np.zeros((local_size, N_chains, n_waters), dtype=np.float)
 
-
-# The structure of the crystal (unit cell or supercell) with all symmetric copies of CWS. Protein atoms numbering must be the same as in your structure/trajectory files
-CRYSTAL_STRUCTURE = 'crystal.gro'
-crystal = md.Universe(CRYSTAL_STRUCTURE)
-crystal_box = crystal.trajectory[0].dimensions
 
 ## Initial pipeline of the LAWS method
 
-## heavy atoms in each chain
+## Selecting only heavy atoms in each chain
 heavy_atoms = crystal.select_atoms('protein and not type H')
 crystal_heavy_atoms_chains = [
     crystal.select_atoms('protein and not type H ' + chain) for chain in chains
@@ -231,27 +257,17 @@ print("Rank: {} is ready".format(rank))
 sys.stdout.flush()
 
 comm.Barrier()
+comm.Gather(local_offsets, offsets, root=0)
+comm.Gather(local_distances, distances, root=0)
+comm.Gather(local_laws_errors, laws_errors, root=0)
 
+## Saving files
 if rank == 0:
-    print('Tunneled the barrier')
-    sys.stdout.flush()
+  
+    # filename 
+    filename_to_save = 'cws'
+    np.save(filename_to_save + '_offsets', offsets) # Offset vectors r, shape (chains, frames, 3)
+    np.save(filename_to_save + '_distances', distances) # Magnitudes of offset vectors, shape (chains, frames, 1)
+    np.save(filename_to_save + '_laws_errors', laws_errors) # LAWS errors with shape (chains, frames, 1)
     
-comm.Gather(local_D_crystal, D_crystal, root=0)
-comm.Gather(local_E_error, E_error, root=0)
-comm.Gather(local_S_crystal, S_crystal, root=0)
-
-## save or print
-if rank == 0:
-    print(D_crystal.shape)
-    
-    # Offset vectors r, shape (chains, frames, 3)
-    np.save(file_to_save + '_shifts', S_crystal)
-    
-    # Magnitudes of offset vectors, shape (chains, frames, 1)
-    np.save(file_to_save + '_distances', D_crystal)
-    
-    # LAWS errors with shape (chains, frames, 1)
-    np.save(file_to_save + '_errors', E_error)
-    
-    
-    print('Saved to ' + file_to_save)
+    print('Saved to ' + filename_to_save)
