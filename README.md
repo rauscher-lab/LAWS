@@ -1,5 +1,5 @@
 # LAWS: Local Alignment for Water Sites
-## A method to analyze crystallographic water in simulations 
+## Tracking ordered water in simulations 
 
 <img align ="center" src="Fig2.png" width="600">
 
