@@ -130,7 +130,7 @@ for i, j in enumerate(range(ind_start, ind_end)):
         )
         local_distances[i, t, :] = np.min(dist_mtx, axis=1)
  
-        # Finding offset vectors to the closest water 
+        # Finding offset vectors to the closest water taking into account preiodic images
         water_indeces = np.argmin(dist_mtx, axis=1)
         positions_water = chain_waters.atoms[water_indeces].positions
         positions_crystal = crystal_waters.atoms.positions
