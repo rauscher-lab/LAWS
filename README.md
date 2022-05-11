@@ -4,9 +4,9 @@
 <img align ="center" src="Fig2.png" width="600">
 
 ## Description
-- `laws.py` contains the multilateration algorithm and all the necessary optimization pipelines
-- `compute_cws_r.py` contains the example of application of the LAWS to the real system
-- `compute_bulk_r.py` contains the example of generating offset vectors for bulk water sites (in a real system)
+- `laws.py` contains the multilateration algorithm and all the necessary optimization pipelines.
+- `compute_laws_r.py` contains the example of computing offset vectors **r** for CWS tracked by local alignmnet (LAWS).
+- `compute_global_r.py` contains the example of computing offset vectors **r** for globally aligned CWS.
 
 
 ## Installation
@@ -22,8 +22,8 @@ pip install mpi4py
 ## Standard Command Line Usage (with MPI)
 Example:
 ```
-mpirun -np 4 python compute_cws_r.py folder_with_data cws_filename folder_to_save_vis
-mpirun -np 4 python compute_bulk_r.py folder_with_data bulk_filename
+mpirun -np 4 python compute_laws_r.py
+mpirun -np 4 python compute_global_r.py
 ```
 ## MD simulation data
 MD simulation data is publicly available from [Zenodo](https://doi.org/10.5281/zenodo.6478270) at DOI: https://doi.org/10.5281/zenodo.6478270
