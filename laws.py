@@ -146,7 +146,7 @@ def get_chain_id(atom):
     """
     return atom.index // N_atoms_in_chain
 
-def find_chains(N_chains=4, N_atoms_in_chain=1473):
+def find_chains(N_chains, N_atoms_in_chain):
     """
     Create a MDAnalysis selection for each individual chain
     """
