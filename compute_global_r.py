@@ -19,7 +19,7 @@ trajectory = traj_folder + 'trajectory.xtc'
 # Typically, a crystal structure (PDB or GRO file) from which your simulation system was built.
 # In case of the MD simulation of a protein crystal (as in the manuscript), the unit cell structure was constructed using option `build a unit cell` in CHARMM-GUI server,
 # by also preserving all crystallographic water oxygens. 
-# Note: Protein atoms numbering must be the same as in your trajectory file. It is normally the case since the MD system is constructed consequtively: 
+# Note: Protein atoms numbering must be the same as in your trajectory file. (See example of the file: crystal.gro on github). It is normally the case since the MD system is constructed consequtively: 
 # PDB (protein + CWS coordinates) -> solvating the system with H2O (using for example, gmx solvate) -> adding ions.
 # Initial information for multilateration (coordinating protein atoms for each CWS) will be extracted from this structure file. 
 CRYSTAL_STRUCTURE = 'crystal.gro' # Protein atom numbers in this file should correpond to 'firstframe.gro'
