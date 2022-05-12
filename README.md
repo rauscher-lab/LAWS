@@ -47,7 +47,7 @@ If you use these codes in your research, please cite our manuscript:
 ```
 @software{LAWS,
   author       = {Klyshko, Eugene and Kim, Justin and Rauscher, Sarah},
-  title        = {{LAWS: Local Alignment for Water Sites - tracking crystallographic water in simulations }},
+  title        = {{LAWS: Local Alignment for Water Sites - tracking ordered water in simulations}},
   url          = {https://github.com/rauscher-lab/LAWS/}
 }
 ```
