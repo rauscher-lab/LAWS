@@ -37,14 +37,13 @@ python compute_bulk_r.py
 mpirun -np 4 python compute_laws_r.py
 mpirun -np 4 python compute_global_r.py
 ```
-The output of these programs (`distances.npy`) can be used for plotting distribution P(r) and radial density function g(r) = P(r) / r^2, or (offsets.npy`) as an input for 3D density calculators (e.g. Gromaps). 
+The output of these programs (`distances.npy`) can be used for plotting distribution P(r) and radial density function g(r) = P(r) / r^2, or (`offsets.npy`) as an input for 3D density calculators (e.g. Gromaps). 
 
 ## MD simulation data
 MD simulation data is publicly available from [Zenodo](https://doi.org/10.5281/zenodo.6478270) at DOI: https://doi.org/10.5281/zenodo.6478270. These structure and trajectory files can be used to test the algorithm. The constructed unit cell of a crystal structure (second PDZ domain of LNX2, PDBID: 5E11) with CWS is available from here: [crystal.gro](https://github.com/rauscher-lab/LAWS/blob/main/crystal.gro).
 
 ## Citation
 If you use these codes in your research, please cite our manuscript:
-
 ```
 @software{LAWS,
   author       = {Klyshko, Eugene and Kim, Justin and Rauscher, Sarah},
