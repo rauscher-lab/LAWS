@@ -38,7 +38,7 @@ mpirun -np 4 python compute_global_r.py
 ```
 
 ## MD simulation data
-MD simulation data is publicly available from [Zenodo](https://doi.org/10.5281/zenodo.6478270) at DOI: https://doi.org/10.5281/zenodo.6478270. These structure and trajectiry file can be used to test the algorithm. The constructed unit cell of a crystal structure (second PDZ domain of LNX2, PDBID: 5E11) with CWS is available from here: [crystal.gro](https://github.com/rauscher-lab/LAWS/blob/main/crystal.gro).
+MD simulation data is publicly available from [Zenodo](https://doi.org/10.5281/zenodo.6478270) at DOI: https://doi.org/10.5281/zenodo.6478270. These structure and trajectory files can be used to test the algorithm. The constructed unit cell of a crystal structure (second PDZ domain of LNX2, PDBID: 5E11) with CWS is available from here: [crystal.gro](https://github.com/rauscher-lab/LAWS/blob/main/crystal.gro).
 
 ## Citation
 If you use these codes in your research, please cite our manuscript:
