@@ -8,7 +8,7 @@
 - `compute_bulk_r.py` contains the code to compute offset vectors **r** and distances |r| for bulk water sites.
 - `compute_global_r.py` contains the code to compute offset vectors **r**, distances |r| for globally aligned CWS.
 - `compute_laws_r.py` contains the code to compute offset vectors **r**, distances |r| and the correponding LAWS errors for the CWS tracked by our local alignment algorithm (LAWS). Additionally, it saves moving positions of the CWS into a new trajectory which can be visualized (as in Fig.4A of the manuscript) with VMD or PyMOL.
-- `crystal.gro` contains the constructed unit cell of the system described in the manuscript (PDZ domain of a human LNX2), with a total of four symmetrically related chains and 4 copies of 94 crystallographic water sites. Note that the protein atoms numbering correponds to the numbering in simulation file `firsframe.gro` (available at https://doi.org/10.5281/zenodo.6478270). Crystallographic water sites are listed consequtively after all protein atoms of four chains. CWS have resids 501-594. 
+- `crystal.gro` contains the constructed unit cell of the system described in the manuscript (PDZ domain of a human LNX2), with a total of four symmetrically related chains and 4 copies of 94 crystallographic water sites. Note that the protein atoms numbering correponds to the numbering in simulation file `firsframe_fix.gro` (available at https://doi.org/10.5281/zenodo.6478270). CWS are listed consequtively after all protein atoms of four chains. CWS have resids 501-594. 
 
 
 ## Installation
