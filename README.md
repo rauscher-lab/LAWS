@@ -1,6 +1,8 @@
 # LAWS: Local Alignment for Water Sites
 ## Algorithm for tracking ordered water in simulations 
 
+Manuscript: https://www.biorxiv.org/content/early/2022/05/13/2022.05.12.491708
+
 <img align ="center" src="Fig2.png" width="600">
 
 ## Description
