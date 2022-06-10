@@ -5,6 +5,10 @@ Manuscript: https://www.biorxiv.org/content/early/2022/05/13/2022.05.12.491708
 
 <img align ="center" src="Fig2.png" width="600">
 
+## Abstract
+
+Protein solvation plays a crucial role in protein function; accurate modeling of protein-water interactions is important for understanding the molecular basis of protein function. In addition to protein structure, x-ray crystallography provides positions of crystallographic water sites (CWS) coordinated by the protein, which can serve as a strong benchmark for modeling accuracy. Such comparison requires special methodological considerations that take into account the dynamic nature of proteins. However, existing methods for analyzing CWS in MD simulations rely on global alignment of the protein onto the crystal structure, which introduces substantial errors in the case of significant structural deviations. Here, we propose a method called local alignment for water sites (LAWS), which is based on multilateration — an algorithm widely used in GPS tracking. LAWS considers the contacts formed by CWS and protein atoms in the crystal structure and uses these interaction distances to track the CWS in a simulation. LAWS provides a framework to quantify how perturbations of the local protein environment affect the preservation of crystallographic waters in simulations. We applied our method to a 1 µs simulation of a protein crystal and demonstrate that 76% of CWS are preserved. Compared to existing methods, LAWS identifies more high-confidence (low B-factor) CWS, which are characterized by more prominent water density peaks and a less-perturbed protein environment.
+
 ## Description
 - `laws.py` contains the multilateration algorithm and all the necessary optimization pipelines.
 - `compute_bulk_r.py` contains the code to compute offset vectors **r** and distances |r| for bulk water sites.
