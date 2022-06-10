@@ -45,9 +45,13 @@ MD simulation data is publicly available from [Zenodo](https://doi.org/10.5281/z
 ## Citation
 If you use these codes in your research, please cite our manuscript:
 ```
-@software{LAWS,
-  author       = {Klyshko, Eugene and Kim, Justin and Rauscher, Sarah},
-  title        = {{LAWS: Local Alignment for Water Sites - tracking ordered water in simulations}},
-  url          = {https://github.com/rauscher-lab/LAWS/}
+@article {LAWS,
+	author = {Klyshko, Eugene and Kim, Justin Sung-Ho and Rauscher, Sarah},
+	title = {LAWS: Local Alignment for Water Sites {\textemdash} tracking ordered water in simulations},
+	year = {2022},
+	doi = {10.1101/2022.05.12.491708},
+	URL = {https://www.biorxiv.org/content/early/2022/05/13/2022.05.12.491708},
+	journal = {bioRxiv}
 }
+
 ```
