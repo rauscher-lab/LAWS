@@ -58,14 +58,21 @@ def solve3Dtrilateration_lsq_linear(r_array, d_array):
     A = r_array[1:] - r_array[0]
     r1_2 = d_array[0]**2
     rn_2 = d_array[1:]**2
-    dn_2 = np.linalg.norm(r_array[1:] - r_array[0], axis=1) **2
+    dn_2 = np.linalg.norm(A, axis=1)**2
+    
     bn = 0.5 * (r1_2 - rn_2 + dn_2)
     AtA = np.dot(np.transpose(A), A)
     k = np.linalg.cond(AtA)
     # if bad conditioned
     if k > 10**2:
-        Q, R = np.linalg.qr(A)
-        return np.dot(np.linalg.inv(R), np.dot(Q.T, bn)) + r_array[0]
+        try:
+            Q, R = np.linalg.qr(A)
+            res = np.dot(np.linalg.inv(R), np.dot(Q.T, bn)) + r_array[0]
+            return res
+        except:
+            print("Can't invert QR decomposition. Returning mean of all coords")
+            return np.mean(r_array, axis=0)
+            
     else:
         try:
             A_1 = np.linalg.inv(AtA)
@@ -76,12 +83,12 @@ def solve3Dtrilateration_lsq_linear(r_array, d_array):
     
 
 def f_i(r, ri, di):
-  """Function to calculate a single residual in the LAWS error (Eq.2)"""
+    """Function to calculate a single residual in the LAWS error (Eq.2)"""
     return np.linalg.norm(r - ri) - di
 
 
 def fun(r, r_array, d_array, weights=False):
-  """Function to compute all weighted residuals in the LAWS error (Eq.2)"""
+    """Function to compute all weighted residuals in the LAWS error (Eq.2)"""
     if weights:
         D = np.sum(1. / d_array**2)
         w_array = (1. / d_array) / D**0.5 
@@ -136,7 +143,7 @@ def find_N_closest_heavy_atoms(water_position, heavy_atoms, box, N_max=10, N_min
         indexes = np.argsort(d[0])[:N_min] 
     sel_atoms = heavy_atoms.atoms[indexes]
     coords = sel_atoms.atoms.positions
-    atoms = [(atom.index, atom.resid, atom.name) for atom in sel_atoms]
+    atoms = [(atom.index, atom.resid, atom.name, atom.segment) for atom in sel_atoms]
     assert len(dists) == len(coords) == len(atoms), "Atom number"
     return atoms, coords, dists
 
@@ -176,9 +183,9 @@ def create_connectors(crystal_waters, crystal_heavy_atoms, box):
     
 
 def find_pbc_coords(positions, tric_vectors, include_self=False):
-  """
-  Find all periodic images for the given coordinates in 26 nearest neighbour unit cells
-  """
+    """
+    Find all periodic images for the given coordinates in 26 nearest neighbour unit cells
+    """
     a, b, c = tric_vectors[0], tric_vectors[1], tric_vectors[2]
     klm = [-1, 0, 1]
     pbc_coords = []
@@ -237,9 +244,9 @@ def apply_correction(heavy_atoms_sel, box):
     return coords
 
 def visualize_step(crystal_water_positions, connectors, box, chain_waters_save_top):
-  """
-  This function is useful for recording positions of CWS for each frame. It is possible to visualize them in VMD
-  """
+    """
+    This function is useful for recording positions of CWS for each frame. It is possible to visualize them in VMD
+    """
     con_pos = np.array(
         [con_atom.position for con_atom in connectors]
     )
@@ -275,9 +282,6 @@ def find_offsets(positions_water, positions_crystal, d, box):
     
     dist = np.min(d, axis=1)
     max_d = np.max(dist)
-    
-    positions_water = apply_PBC(positions_water, box)
-    positions_crystal = apply_PBC(positions_crystal, box)
     
     offsets = positions_water - positions_crystal
     norm = np.linalg.norm(offsets, axis=1)
