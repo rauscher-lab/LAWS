@@ -255,7 +255,7 @@ if rank == 0:
   
     # filename to save all the results in npy array
     filename_to_save = 'cws'
-    np.save(filename_to_save + '_offsets', offsets) # Offset vectors r, shape (chains, frames, 3)
-    np.save(filename_to_save + '_distances', distances) # Magnitudes of offset vectors, shape (chains, frames, 1)
-    np.save(filename_to_save + '_laws_errors', laws_errors) # LAWS errors with shape (chains, frames, 1)
+    np.save(filename_to_save + '_offsets', offsets) # Offset vectors r, shape (frames, chains, waters, 3)
+    np.save(filename_to_save + '_distances', distances) # Magnitudes of offset vectors, shape (frames, chains, waters, 1)
+    np.save(filename_to_save + '_laws_errors', laws_errors) # LAWS errors with shape (frames, chains, waters, 1)
 
