@@ -78,7 +78,7 @@ ind_start = rank * local_n
 if rank != size - 1 :
     ind_end = (rank+1)*local_n
 else:
-    ind_end = N
+    ind_end = N_chains
 
 # Next block of code describes memory allocation to each process (for MPI):
 if rank == 0:
