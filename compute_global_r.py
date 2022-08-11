@@ -22,7 +22,7 @@ trajectory = traj_folder + 'trajectory.xtc'
 # Note: Protein atoms numbering must be the same as in your trajectory file. (See example of the file: crystal.gro on github). It is normally the case since the MD system is constructed consequtively: 
 # PDB (protein + CWS coordinates) -> solvating the system with H2O (using for example, gmx solvate) -> adding ions.
 # Initial information for multilateration (coordinating protein atoms for each CWS) will be extracted from this structure file. 
-CRYSTAL_STRUCTURE = 'crystal.gro' # Protein atom numbers in this file should correpond to 'firstframe.gro'
+CRYSTAL_STRUCTURE = 'crystal_1chain.gro' # A single chain of the protein with crystallographic waters 
 
 # 3. Parameters of the system and trajectory
 stride = 10 # Stride for analysis (when stride=10 we will analyze only every 10-th frame of the original trajectory)
@@ -83,8 +83,8 @@ else:
 # Next block of code describes memory allocation to each process (for MPI):
 if rank == 0:
     # main global variables containing offset vectors, distances (magnitudes of offset vectors)
-    distances = np.empty((N, timesteps, n_waters), dtype=np.float)
-    offsets = np.empty((N, timesteps, n_waters, 3), dtype=np.float)
+    distances = np.empty((N_chains, timesteps, n_waters), dtype=np.float)
+    offsets = np.empty((N_chains, timesteps, n_waters, 3), dtype=np.float)
 else:
     distances = None
     offsets = None
@@ -103,8 +103,8 @@ for i, j in enumerate(range(ind_start, ind_end)):
     
     chain_sel = chains[j] 
     chain = traj.select_atoms('protein and not type H' + chain_sel) # selecting a specific chain
-    sel_text = 'name OW and around 6.0 protein {}'.format(chain_sel)
-    chain_waters = traj.select_atoms(sel_text, updating=True) # select water molecules in a simulation within 6 A from the protein
+    sel_text = 'name OW'
+    chain_waters = traj.select_atoms(sel_text) # select water molecules in a simulation 
     
     protein_atoms = crystal.select_atoms('protein and not type H') # select protein atoms in the crystal
     
