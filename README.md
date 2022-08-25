@@ -43,7 +43,7 @@ python compute_bulk_r.py
 mpirun -np 4 python compute_laws_r.py
 mpirun -np 4 python compute_global_r.py
 ```
-The LAWS algorithm requires solving a nonlinear optimization problem for each CWS at every frame. We implemented the MPI protocol to parallelize and speed up the computations. For the system described in the mansucript (with 94 CWS x 100,000 frames) it took 5 hours of wall clock time on 40 Intel "Skylake" cores to obtain the results. The output of these programs (`distances.npy`) can be used for plotting distribution P(r) and radial density function g(r) = P(r) / r^2, or (`offsets.npy`) as an input for 3D density calculators (e.g. Gromaps). 
+The LAWS algorithm requires solving a nonlinear optimization problem for each CWS at every frame. We implemented the MPI protocol to parallelize and speed up the computations. For the system described in the mansucript (4 protein chains x 94 CWS x 100,000 frames) it took 5 hours of wall clock time on a node with 2 Intel® Xeon® Gold 6148 Processors (2.4 GHz) to obtain the results (`-np 40`). The output of these programs (`distances.npy`) can be used for plotting distribution P(r) and radial density function g(r) = P(r) / r^2, or (`offsets.npy`) as an input for 3D density calculators (e.g. Gromaps). 
 
 ## MD simulation data
 MD simulation data is publicly available from [Zenodo](https://doi.org/10.5281/zenodo.6478270) at DOI: https://doi.org/10.5281/zenodo.6478270. These structure and trajectory files can be used to test the algorithm. The constructed unit cell of a crystal structure (second PDZ domain of LNX2, PDBID: 5E11) with CWS is available from here: [crystal.gro](https://github.com/rauscher-lab/LAWS/blob/main/crystal.gro).
