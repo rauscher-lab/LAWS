@@ -1,7 +1,7 @@
 # LAWS: Local Alignment for Water Sites
 ## Algorithm for tracking ordered water in simulations 
 
-Manuscript: https://www.biorxiv.org/content/early/2022/05/13/2022.05.12.491708
+Manuscript: https://doi.org/10.1016/j.bpj.2022.09.012
 
 <img align ="center" src="Fig2.png" width="600">
 
@@ -53,13 +53,14 @@ MD simulation data is publicly available from [Zenodo](https://doi.org/10.5281/z
 ## Citation
 If you use these codes in your research, please cite our manuscript:
 ```
-@article {LAWS,
-	author = {Klyshko, Eugene and Kim, Justin Sung-Ho and Rauscher, Sarah},
-	title = {LAWS: Local Alignment for Water Sites {\textemdash} tracking ordered water in simulations},
+@article{LAWS2022,
+	title = {LAWS: Local alignment for water sites – Tracking ordered water in simulations},
+	journal = {Biophysical Journal},
 	year = {2022},
-	doi = {10.1101/2022.05.12.491708},
-	URL = {https://www.biorxiv.org/content/early/2022/05/13/2022.05.12.491708},
-	journal = {bioRxiv}
+	issn = {0006-3495},
+	doi = {https://doi.org/10.1016/j.bpj.2022.09.012},
+	url = {https://www.sciencedirect.com/science/article/pii/S0006349522007627},
+	author = {Eugene Klyshko and Justin Sung-Ho Kim and Sarah Rauscher},
 }
 
 ```
